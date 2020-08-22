@@ -11,22 +11,21 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-
   Map<String, dynamic> data = {};
 
   void _sendMessage({String text, File imgFile}) async {
-
-    if(imgFile != null){
-      StorageUploadTask task = FirebaseStorage.instance.ref().child(
-        DateTime.now().millisecondsSinceEpoch.toString()
-      ).putFile(imgFile);
+    if (imgFile != null) {
+      StorageUploadTask task = FirebaseStorage.instance
+          .ref()
+          .child(DateTime.now().millisecondsSinceEpoch.toString())
+          .putFile(imgFile);
 
       StorageTaskSnapshot taskSnapshot = await task.onComplete;
       String url = await taskSnapshot.ref.getDownloadURL();
       data['imgUrl'] = url;
     }
 
-    if(text != null) data['text'] = text;
+    if (text != null) data['text'] = text;
 
     Firestore.instance.collection("messages").add(data);
   }
@@ -38,7 +37,38 @@ class _ChatScreenState extends State<ChatScreen> {
         title: Text("Olá"),
         elevation: 0,
       ),
-      body: TextComposer(_sendMessage),
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            child: StreamBuilder(
+              stream: Firestore.instance.collection("messages").snapshots(),
+              builder: (context, snapshot) {
+                switch (snapshot.connectionState) {
+                  case ConnectionState.none:
+                  case ConnectionState.waiting:
+                    return Center(
+                      child: CircularProgressIndicator(),
+                    );
+                    break;
+                  default:
+                    List<DocumentSnapshot> documents =
+                        snapshot.data.documents.reversed.toList();
+
+                    return ListView.builder(
+                        itemCount: documents.length,
+                        reverse: true,
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            title: Text(documents[index].data["text"]),
+                          );
+                        });
+                }
+              },
+            ),
+          ),
+          TextComposer(_sendMessage),
+        ],
+      ),
     );
   }
 }
